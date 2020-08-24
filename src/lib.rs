@@ -34,12 +34,31 @@ where
   }
 }
 
+pub struct StatisticsTrackingSimulatorConfig {
+  step: usize,
+}
+
+impl Default for StatisticsTrackingSimulatorConfig {
+  fn default() -> Self {
+    StatisticsTrackingSimulatorConfig { step: 1 }
+  }
+}
+
+impl StatisticsTrackingSimulatorConfig {
+  pub fn step(mut self, step: usize) -> Self {
+    self.step = step;
+    self
+  }
+}
+
 pub struct StatisticsTrackingSimulator<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
 {
-  statistics: Vec<TStatistics>,
+  config: StatisticsTrackingSimulatorConfig,
+  tick: usize,
+  statistics: Vec<(usize, TStatistics)>,
   simulator: Simulator<TSimulation>,
 }
 
@@ -49,26 +68,40 @@ where
   TStatistics: Statistics<TSimulation::TState>,
 {
   pub fn new(init_state: TSimulation::TState) -> Self {
+    Self::with_config(init_state, StatisticsTrackingSimulatorConfig::default())
+  }
+
+  pub fn with_config(
+    init_state: TSimulation::TState,
+    config: StatisticsTrackingSimulatorConfig,
+  ) -> Self {
     Self {
-      statistics: vec![TStatistics::derive(&init_state)],
+      config,
+      tick: 0,
+      statistics: vec![(0, TStatistics::derive(&init_state))],
       simulator: Simulator::new(init_state),
     }
   }
 
   pub fn tick(&mut self) {
     self.simulator.tick();
-    self.statistics.push(TStatistics::derive(self.state()));
+    self.tick += 1;
+    if self.tick % self.config.step == 0 {
+      self
+        .statistics
+        .push((self.tick, TStatistics::derive(self.state())));
+    }
   }
 
   pub fn state(&self) -> &TSimulation::TState {
     self.simulator.state()
   }
 
-  pub fn statistics(&self) -> impl Iterator<Item = &TStatistics> {
+  pub fn statistics(&self) -> impl Iterator<Item = &(usize, TStatistics)> {
     self.statistics.iter()
   }
 
-  pub fn most_recent_statistics(&self) -> &TStatistics {
+  pub fn most_recent_statistics(&self) -> &(usize, TStatistics) {
     self.statistics.last().unwrap()
   }
 }
