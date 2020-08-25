@@ -1,7 +1,7 @@
 pub trait Simulation {
   type TState;
 
-  fn tick(prev_state: &Self::TState) -> Self::TState;
+  fn tick(&self, prev_state: &Self::TState) -> Self::TState;
 }
 
 pub trait Statistics<T> {
@@ -20,6 +20,7 @@ pub struct Simulator<TSimulation>
 where
   TSimulation: Simulation,
 {
+  simulation: TSimulation,
   state: TSimulation::TState,
 }
 
@@ -27,12 +28,15 @@ impl<TSimulation> Simulator<TSimulation>
 where
   TSimulation: Simulation,
 {
-  pub fn new(init_state: TSimulation::TState) -> Self {
-    Self { state: init_state }
+  pub fn new(simulation: TSimulation, init_state: TSimulation::TState) -> Self {
+    Self {
+      simulation,
+      state: init_state,
+    }
   }
 
   pub fn tick(&mut self) {
-    self.state = TSimulation::tick(self.state());
+    self.state = self.simulation.tick(self.state());
   }
 
   pub fn state(&self) -> &TSimulation::TState {
@@ -73,11 +77,16 @@ where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
 {
-  pub fn new(init_state: TSimulation::TState) -> Self {
-    Self::with_config(init_state, StatisticsTrackingSimulatorConfig::default())
+  pub fn new(simulation: TSimulation, init_state: TSimulation::TState) -> Self {
+    Self::with_config(
+      simulation,
+      init_state,
+      StatisticsTrackingSimulatorConfig::default(),
+    )
   }
 
   pub fn with_config(
+    simulation: TSimulation,
     init_state: TSimulation::TState,
     config: StatisticsTrackingSimulatorConfig,
   ) -> Self {
@@ -85,7 +94,7 @@ where
       config,
       tick: 0,
       statistics: vec![(0, TStatistics::derive(&init_state))],
-      simulator: Simulator::new(init_state),
+      simulator: Simulator::new(simulation, init_state),
     }
   }
 
