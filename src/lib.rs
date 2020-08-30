@@ -1,7 +1,7 @@
 pub trait Simulation {
   type TState;
 
-  fn tick(&self, prev_state: &Self::TState) -> Self::TState;
+  fn tick(&self, state: &mut Self::TState);
 }
 
 pub trait Statistics<T> {
@@ -36,7 +36,7 @@ where
   }
 
   pub fn tick(&mut self) {
-    self.state = self.simulation.tick(self.state());
+    self.simulation.tick(&mut self.state);
   }
 
   pub fn state(&self) -> &TSimulation::TState {
