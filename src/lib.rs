@@ -1,3 +1,6 @@
+#[cfg(feature = "ggez_app")]
+pub mod ggez;
+
 pub trait Simulation {
   type TState;
 
