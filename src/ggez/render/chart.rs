@@ -115,7 +115,15 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
 
       cc.configure_mesh()
         .x_label_formatter(&|x| format!("{}", TStatistics::map_tick_unit(*x as usize)))
-        .y_label_formatter(&|y| format!("{}", y))
+        .y_label_formatter(&|y| {
+          let (y, u) = match y {
+            y if *y >= 1_000_000_000.0 => (y / 1_000_000_000.0, " B"),
+            y if *y >= 1_000_000.0 => (y / 1_000_000.0, " M"),
+            y if *y >= 1_000.0 => (y / 1_000.0, " K"),
+            y => (*y, ""),
+          };
+          format!("{:.2}{}", y, u)
+        })
         .x_labels(10)
         .y_labels(10)
         .x_desc(TStatistics::get_tick_unit())
