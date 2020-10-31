@@ -97,7 +97,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .margin(10)
         .caption(
           &self.group.title,
-          ("sans-serif", 30)
+          ("sans-serif", h / 15.0)
             .into_font()
             .color(&plotters::prelude::WHITE),
         )
@@ -121,13 +121,13 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .x_desc(TStatistics::get_tick_unit())
         .y_desc(&self.group.unit)
         .label_style(
-          ("sans-serif", 15)
+          ("sans-serif", h / 30.0)
             .into_font()
             .color(&plotters::prelude::WHITE),
         )
         .axis_style(&plotters::prelude::WHITE.to_rgba())
         .axis_desc_style(
-          ("sans-serif", 15)
+          ("sans-serif", h / 30.0)
             .into_font()
             .color(&plotters::prelude::WHITE),
         )
@@ -164,7 +164,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .background_style(&plotters::prelude::BLACK.mix(0.8))
         .border_style(&plotters::prelude::WHITE)
         .label_font(
-          ("sans-serif", 15)
+          ("sans-serif", h / 30.0)
             .into_font()
             .color(&plotters::prelude::WHITE),
         )
