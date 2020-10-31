@@ -6,7 +6,6 @@ pub trait Statistics<T>: Sized {
   fn get_tick_unit() -> String;
   fn map_tick_unit(tick: usize) -> f64;
   fn get_groups() -> Vec<StatisticsGroup<T, Self>>;
-  fn get_names() -> Vec<String>;
   fn get_value(&self, name: &str) -> f64;
   fn derive(state: &T) -> Self;
 }
