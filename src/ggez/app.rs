@@ -1,5 +1,7 @@
-use crate::ggez::render::{chart::StatsChart, simulation::StateRenderer, Drawable as MyDrawable};
-use crate::{Simulation, Statistics, StatisticsTrackingSimulator};
+use crate::ggez::render::{chart::StatsCharts, simulation::StateRenderer, Drawable as MyDrawable};
+use crate::stats::Statistics;
+use crate::stats::StatisticsTrackingSimulator;
+use crate::Simulation;
 use ggez::{
   event::{EventHandler, MouseButton},
   graphics::{self, Drawable, Rect},
@@ -142,8 +144,7 @@ where
         },
       )?;
 
-    let stats: Vec<_> = self.simulator.statistics().collect();
-    StatsChart::new(&stats, self.simulator.max_value, self.simulator.min_value).draw(
+    StatsCharts::new(&self.simulator.stats).draw(
       ctx,
       Rect {
         x: 0.0,

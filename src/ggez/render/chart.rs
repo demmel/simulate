@@ -1,5 +1,7 @@
 use crate::ggez::render::Drawable;
-use crate::Statistics;
+use crate::stats::SimStats;
+use crate::stats::Statistics;
+use crate::stats::StatisticsGroup;
 use ggez::{
   graphics::{self, DrawParam, Image, Rect},
   Context, GameError, GameResult,
@@ -10,22 +12,71 @@ use plotters::{
   prelude::{ChartBuilder, LineSeries, Palette99, Rectangle},
   style::{Color as PlottersColor, IntoFont, Palette},
 };
-use std::marker::PhantomData;
+
+pub struct StatsCharts<'a, TState, TStatistics: Statistics<TState>> {
+  stats: &'a SimStats<TState, TStatistics>,
+}
+
+impl<'a, TState, TStatistics: Statistics<TState>> StatsCharts<'a, TState, TStatistics> {
+  pub fn new(stats: &'a SimStats<TState, TStatistics>) -> Self {
+    Self { stats }
+  }
+}
+
+impl<'a, TState, TStatistics: Statistics<TState>> Drawable
+  for StatsCharts<'a, TState, TStatistics>
+{
+  fn draw(&self, ctx: &mut Context, at: Rect) -> GameResult<()> {
+    let Rect { x, y, w, h } = at;
+
+    let groups = TStatistics::get_groups();
+    let grid_size = (groups.len() as f64).sqrt().ceil() as usize;
+    let sx = w / grid_size as f32;
+    let sy = h / grid_size as f32;
+
+    for (i, group) in groups.iter().enumerate() {
+      let r = i / grid_size;
+      let c = i % grid_size;
+      StatsChart::new(
+        group,
+        &self.stats.statistics,
+        self.stats.min_values[i],
+        self.stats.max_values[i],
+      )
+      .draw(
+        ctx,
+        Rect {
+          x: x + c as f32 * sx,
+          y: y + r as f32 * sy,
+          w: sx,
+          h: sy,
+        },
+      )?;
+    }
+
+    Ok(())
+  }
+}
 
 pub struct StatsChart<'a, TState, TStatistics: Statistics<TState>> {
   max_value: f64,
   min_value: f64,
-  stats: &'a Vec<&'a (usize, TStatistics)>,
-  _state: PhantomData<TState>,
+  group: &'a StatisticsGroup<TState, TStatistics>,
+  stats: &'a Vec<(usize, TStatistics)>,
 }
 
 impl<'a, TState, TStatistics: Statistics<TState>> StatsChart<'a, TState, TStatistics> {
-  pub fn new(stats: &'a Vec<&'a (usize, TStatistics)>, max_value: f64, min_value: f64) -> Self {
+  pub fn new(
+    group: &'a StatisticsGroup<TState, TStatistics>,
+    stats: &'a Vec<(usize, TStatistics)>,
+    min_value: f64,
+    max_value: f64,
+  ) -> Self {
     Self {
-      max_value,
       min_value,
+      max_value,
+      group,
       stats,
-      _state: PhantomData,
     }
   }
 }
@@ -45,7 +96,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
       let mut cc = ChartBuilder::on(&root)
         .margin(10)
         .caption(
-          TStatistics::get_title(),
+          &self.group.title,
           ("sans-serif", 30)
             .into_font()
             .color(&plotters::prelude::WHITE),
@@ -68,7 +119,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .x_labels(10)
         .y_labels(10)
         .x_desc(TStatistics::get_tick_unit())
-        .y_desc(TStatistics::get_unit())
+        .y_desc(&self.group.unit)
         .label_style(
           ("sans-serif", 15)
             .into_font()
@@ -89,7 +140,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
           )))
         })?;
 
-      for (i, name) in TStatistics::get_names().iter().enumerate() {
+      for (i, name) in self.group.names.iter().enumerate() {
         cc.draw_series(LineSeries::new(
           self
             .stats
