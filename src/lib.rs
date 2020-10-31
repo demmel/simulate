@@ -10,8 +10,6 @@ pub trait Simulation {
 pub trait Statistics<T> {
   fn get_title() -> String;
   fn get_unit() -> String;
-  fn get_unit_min() -> f64;
-  fn get_unit_max() -> f64;
   fn get_tick_unit() -> String;
   fn map_tick_unit(tick: usize) -> f64;
   fn get_names() -> Vec<String>;
@@ -70,9 +68,11 @@ where
   TStatistics: Statistics<TSimulation::TState>,
 {
   config: StatisticsTrackingSimulatorConfig,
-  tick: usize,
-  statistics: Vec<(usize, TStatistics)>,
+  max_value: f64,
+  min_value: f64,
   simulator: Simulator<TSimulation>,
+  statistics: Vec<(usize, TStatistics)>,
+  tick: usize,
 }
 
 impl<TSimulation, TStatistics> StatisticsTrackingSimulator<TSimulation, TStatistics>
@@ -93,11 +93,18 @@ where
     init_state: TSimulation::TState,
     config: StatisticsTrackingSimulatorConfig,
   ) -> Self {
+    let stats = TStatistics::derive(&init_state);
+    let values: Vec<_> = TStatistics::get_names()
+      .iter()
+      .map(|name| stats.get_value(name))
+      .collect();
     Self {
       config,
-      tick: 0,
-      statistics: vec![(0, TStatistics::derive(&init_state))],
+      max_value: values.iter().cloned().fold(0.0, f64::max),
+      min_value: values.iter().cloned().fold(0.0, f64::min),
       simulator: Simulator::new(simulation, init_state),
+      statistics: vec![(0, stats)],
+      tick: 0,
     }
   }
 
@@ -105,9 +112,14 @@ where
     self.simulator.tick();
     self.tick += 1;
     if self.tick % self.config.step == 0 {
-      self
-        .statistics
-        .push((self.tick, TStatistics::derive(self.state())));
+      let stats = TStatistics::derive(self.state());
+      let values: Vec<_> = TStatistics::get_names()
+        .iter()
+        .map(|name| stats.get_value(name))
+        .collect();
+      self.max_value = f64::max(self.max_value, values.iter().cloned().fold(0.0, f64::max));
+      self.min_value = f64::min(self.min_value, values.iter().cloned().fold(0.0, f64::min));
+      self.statistics.push((self.tick, stats));
     }
   }
 

@@ -13,13 +13,17 @@ use plotters::{
 use std::marker::PhantomData;
 
 pub struct StatsChart<'a, TState, TStatistics: Statistics<TState>> {
+  max_value: f64,
+  min_value: f64,
   stats: &'a Vec<&'a (usize, TStatistics)>,
   _state: PhantomData<TState>,
 }
 
 impl<'a, TState, TStatistics: Statistics<TState>> StatsChart<'a, TState, TStatistics> {
-  pub fn new(stats: &'a Vec<&'a (usize, TStatistics)>) -> Self {
+  pub fn new(stats: &'a Vec<&'a (usize, TStatistics)>, max_value: f64, min_value: f64) -> Self {
     Self {
+      max_value,
+      min_value,
       stats,
       _state: PhantomData,
     }
@@ -50,7 +54,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .y_label_area_size(50)
         .build_ranged(
           self.stats.first().unwrap().0 as u32..self.stats.last().unwrap().0 as u32,
-          TStatistics::get_unit_min()..TStatistics::get_unit_max(),
+          self.min_value..self.max_value,
         )
         .or_else(|_| {
           Err(GameError::RenderError(String::from(

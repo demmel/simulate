@@ -143,7 +143,7 @@ where
       )?;
 
     let stats: Vec<_> = self.simulator.statistics().collect();
-    StatsChart::new(&stats).draw(
+    StatsChart::new(&stats, self.simulator.max_value, self.simulator.min_value).draw(
       ctx,
       Rect {
         x: 0.0,
