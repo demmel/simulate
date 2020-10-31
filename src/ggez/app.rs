@@ -98,8 +98,8 @@ where
   fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, dx: f32, dy: f32) {
     self.mouse_pos = Point2::from([x, y]);
     if self.mouse_down {
-      self.camera_position[0] -= dx;
-      self.camera_position[1] -= dy;
+      self.camera_position[0] -= dx / 1.75 * self.zoom_level.powf(1.0 / 3.0);
+      self.camera_position[1] -= dy / 1.75 * self.zoom_level.powf(1.0 / 3.0);
     }
   }
 
@@ -122,8 +122,23 @@ where
   }
 
   fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) {
-    self.zoom_level += 0.05 * y;
-    self.zoom_level = self.zoom_level.max(0.05);
+    let sim_rect = get_simulation_draw_rect(self.drawable_size[0], self.drawable_size[1]);
+
+    let d_zoom = 0.05 * y * self.zoom_level;
+    let o_zoom = self.zoom_level;
+    self.zoom_level = (o_zoom + d_zoom).max(0.05);
+
+    let mouse_pos = nalgebra::Point2::from([self.mouse_pos.x, self.mouse_pos.y]);
+    let center =
+      nalgebra::Point2::from([sim_rect.x + sim_rect.w / 2.0, sim_rect.y + sim_rect.h / 2.0]);
+    let camera_pos = nalgebra::Vector2::from(self.camera_position);
+
+    let shift = (mouse_pos - center) + camera_pos;
+
+    let zoom_multi = self.zoom_level / o_zoom;
+
+    self.camera_position[0] += shift.x * (zoom_multi - 1.0);
+    self.camera_position[1] += shift.y * (zoom_multi - 1.0);
   }
 
   fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
@@ -134,15 +149,7 @@ where
     StateRenderer::new(self.simulator.state())
       .zoom_level(self.zoom_level)
       .camera_position(self.camera_position)
-      .draw(
-        ctx,
-        Rect {
-          x: w / 2.0,
-          y: 0.0,
-          w: w / 2.0,
-          h,
-        },
-      )?;
+      .draw(ctx, get_simulation_draw_rect(w, h))?;
 
     StatsCharts::new(&self.simulator.stats).draw(
       ctx,
@@ -158,19 +165,28 @@ where
 
     self.draw_time = Some(Instant::now() - draw_start);
 
-    println!(
-      "Update: {:?} Draw: {:?} Delta: {:?} FPS: {:?} TPS: {:?}",
-      self.update_time,
-      self.draw_time,
-      timer::delta(ctx),
-      timer::fps(ctx),
-      self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32(),
-    );
+    // println!(
+    //   "Update: {:?} Draw: {:?} Delta: {:?} FPS: {:?} TPS: {:?}",
+    //   self.update_time,
+    //   self.draw_time,
+    //   timer::delta(ctx),
+    //   timer::fps(ctx),
+    //   self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32(),
+    // );
 
     Ok(())
   }
 
   fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
     self.new_size = Some((width, height));
+  }
+}
+
+fn get_simulation_draw_rect(w: f32, h: f32) -> Rect {
+  Rect {
+    x: w / 2.0,
+    y: 0.0,
+    w: w / 2.0,
+    h,
   }
 }
