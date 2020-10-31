@@ -145,16 +145,16 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
           self
             .stats
             .iter()
-            .map(|(a, b)| (*a as u32, b.get_value(name))),
+            .map(|(a, b)| (*a as u32, b.get_value(name.clone()))),
           &Palette99::pick(i),
         ))
         .or_else(|_| {
           Err(GameError::RenderError(format!(
             "Could not draw '{}' series",
-            name
+            <TStatistics::TStatID as Into<String>>::into(name.clone())
           )))
         })?
-        .label(name)
+        .label(name.clone())
         .legend(move |(x, y)| {
           Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &Palette99::pick(i))
         });

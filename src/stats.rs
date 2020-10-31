@@ -3,23 +3,25 @@ use crate::Simulator;
 use std::marker::PhantomData;
 
 pub trait Statistics<T>: Sized {
+  type TStatID: Into<String> + Clone;
+
   fn get_tick_unit() -> String;
   fn map_tick_unit(tick: usize) -> f64;
   fn get_groups() -> Vec<StatisticsGroup<T, Self>>;
-  fn get_value(&self, name: &str) -> f64;
+  fn get_value(&self, name: Self::TStatID) -> f64;
   fn derive(state: &T) -> Self;
 }
 
 pub struct StatisticsGroup<TState, TStatistics: Statistics<TState>> {
   pub title: String,
   pub unit: String,
-  pub names: Vec<String>,
+  pub names: Vec<TStatistics::TStatID>,
   _state: PhantomData<TState>,
   _statistics: PhantomData<TStatistics>,
 }
 
 impl<TState, TStatistics: Statistics<TState>> StatisticsGroup<TState, TStatistics> {
-  pub fn new(title: &str, unit: &str, names: Vec<String>) -> Self {
+  pub fn new(title: &str, unit: &str, names: Vec<TStatistics::TStatID>) -> Self {
     Self {
       title: title.into(),
       unit: unit.into(),
@@ -33,7 +35,7 @@ impl<TState, TStatistics: Statistics<TState>> StatisticsGroup<TState, TStatistic
     self
       .names
       .iter()
-      .map(|name| stats.get_value(name))
+      .map(|name| stats.get_value(name.clone()))
       .fold(0.0, f64::max)
   }
 
@@ -41,7 +43,7 @@ impl<TState, TStatistics: Statistics<TState>> StatisticsGroup<TState, TStatistic
     self
       .names
       .iter()
-      .map(|name| stats.get_value(name))
+      .map(|name| stats.get_value(name.clone()))
       .fold(0.0, f64::min)
   }
 }
