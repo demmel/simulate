@@ -1,10 +1,13 @@
-use crate::ggez::render::{chart::StatsCharts, simulation::StateRenderer, Drawable as MyDrawable};
+use crate::ggez::render::{
+  chart::StatsCharts, simulation::InternalStateRenderer, Drawable as MyDrawable,
+};
+use crate::ggez::StateRenderer;
 use crate::stats::Statistics;
 use crate::stats::StatisticsTrackingSimulator;
 use crate::Simulation;
 use ggez::{
   event::{EventHandler, MouseButton},
-  graphics::{self, Drawable, Rect},
+  graphics::{self, Rect},
   mint::Point2,
   timer, Context, GameResult,
 };
@@ -14,8 +17,9 @@ pub struct App<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
-  TSimulation::TState: Drawable,
+  TSimulation::TState: StateRenderer,
 {
+  assets: <TSimulation::TState as StateRenderer>::TAssets,
   drawable_size: [f32; 2],
   mouse_pos: Point2<f32>,
   mouse_down: bool,
@@ -33,15 +37,16 @@ impl<TSimulation, TStatistics> App<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
-  TSimulation::TState: Drawable,
+  TSimulation::TState: StateRenderer,
 {
   pub fn new(
     ctx: &mut Context,
     simulator: StatisticsTrackingSimulator<TSimulation, TStatistics>,
-  ) -> Self {
+  ) -> Result<Self, ggez::GameError> {
     let drawable_size = graphics::drawable_size(&ctx);
 
-    Self {
+    Ok(Self {
+      assets: simulator.state().load_assets(ctx)?,
       mouse_pos: ggez::input::mouse::position(ctx),
       mouse_down: ggez::input::mouse::button_pressed(ctx, MouseButton::Left),
       drawable_size: [drawable_size.0, drawable_size.1],
@@ -53,7 +58,7 @@ where
       ticks: 0,
       simulator,
       zoom_level: 1.0,
-    }
+    })
   }
 }
 
@@ -61,7 +66,7 @@ impl<TSimulation, TStatistics> EventHandler for App<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
-  TSimulation::TState: Drawable,
+  TSimulation::TState: StateRenderer,
 {
   fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
     let update_start = Instant::now();
@@ -89,6 +94,11 @@ where
         .checked_sub(tick_duration)
         .unwrap_or_else(|| Duration::new(0, 0));
     }
+
+    self
+      .simulator
+      .state()
+      .update_assets(ctx, &mut self.assets)?;
 
     self.update_time = Some(Instant::now() - update_start);
 
@@ -146,7 +156,7 @@ where
 
     graphics::clear(ctx, graphics::BLACK);
     let (w, h) = graphics::drawable_size(ctx);
-    StateRenderer::new(self.simulator.state())
+    InternalStateRenderer::new(self.simulator.state(), &self.assets)
       .zoom_level(self.zoom_level)
       .camera_position(self.camera_position)
       .draw(ctx, get_simulation_draw_rect(w, h))?;
@@ -165,14 +175,14 @@ where
 
     self.draw_time = Some(Instant::now() - draw_start);
 
-    // println!(
-    //   "Update: {:?} Draw: {:?} Delta: {:?} FPS: {:?} TPS: {:?}",
-    //   self.update_time,
-    //   self.draw_time,
-    //   timer::delta(ctx),
-    //   timer::fps(ctx),
-    //   self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32(),
-    // );
+    println!(
+      "Update: {:?} Draw: {:?} Delta: {:?} FPS: {:?} TPS: {:?}",
+      self.update_time,
+      self.draw_time,
+      timer::delta(ctx),
+      timer::fps(ctx),
+      self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32(),
+    );
 
     Ok(())
   }

@@ -1,21 +1,24 @@
 use crate::ggez::render::Drawable;
-use ggez::graphics::{self, DrawParam, Drawable as GGezDrawable, Rect};
+use crate::ggez::StateRenderer;
+use ggez::graphics::{self, DrawParam, Rect};
 
-pub struct StateRenderer<'a, TState>
+pub struct InternalStateRenderer<'a, TState>
 where
-  TState: GGezDrawable,
+  TState: StateRenderer,
 {
+  assets: &'a TState::TAssets,
   state: &'a TState,
   zoom_level: f32,
   camera_position: [f32; 2],
 }
 
-impl<'a, TState> StateRenderer<'a, TState>
+impl<'a, TState> InternalStateRenderer<'a, TState>
 where
-  TState: GGezDrawable,
+  TState: StateRenderer,
 {
-  pub fn new(state: &'a TState) -> Self {
+  pub fn new(state: &'a TState, assets: &'a TState::TAssets) -> Self {
     Self {
+      assets,
       state,
       zoom_level: 1.0,
       camera_position: [0.0, 0.0],
@@ -33,9 +36,9 @@ where
   }
 }
 
-impl<'a, TState> Drawable for StateRenderer<'a, TState>
+impl<'a, TState> Drawable for InternalStateRenderer<'a, TState>
 where
-  TState: GGezDrawable,
+  TState: StateRenderer,
 {
   fn draw(
     &self,
@@ -69,7 +72,7 @@ where
     );
     graphics::apply_transformations(ctx)?;
 
-    self.state.draw(ctx, DrawParam::default())?;
+    self.state.draw(ctx, self.assets)?;
 
     graphics::pop_transform(ctx);
     graphics::apply_transformations(ctx)
