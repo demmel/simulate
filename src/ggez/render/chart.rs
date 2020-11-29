@@ -86,6 +86,16 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
     let Rect { x, y, w, h } = at;
     let mut buffer = vec![255; w as usize * h as usize * 3 /* RGB */];
 
+    let &Self {
+      min_value,
+      mut max_value,
+      ..
+    } = self;
+
+    if max_value <= min_value {
+      max_value = min_value + f64::EPSILON;
+    }
+
     {
       let backend = BitMapBackend::with_buffer(&mut buffer, (w as u32, h as u32));
       let root = backend.into_drawing_area();
@@ -105,7 +115,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .y_label_area_size(50)
         .build_ranged(
           self.stats.first().unwrap().0 as u32..self.stats.last().unwrap().0 as u32,
-          self.min_value..self.max_value,
+          min_value..max_value,
         )
         .or_else(|_| {
           Err(GameError::RenderError(String::from(
