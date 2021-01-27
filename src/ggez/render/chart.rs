@@ -173,12 +173,9 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
           &Palette99::pick(i),
         ))
         .map_err(|_| {
-          GameError::RenderError(format!(
-            "Could not draw '{}' series",
-            <TStatistics::TStatID as Into<String>>::into(name.clone())
-          ))
+          GameError::RenderError(format!("Could not draw '{}' series", name))
         })?
-        .label(name.clone())
+        .label(format!("{}", name))
         .legend(move |(x, y)| {
           Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &Palette99::pick(i))
         });

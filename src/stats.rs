@@ -3,7 +3,7 @@ use crate::Simulator;
 use std::marker::PhantomData;
 
 pub trait Statistics<T>: Sized {
-  type TStatID: Into<String> + Clone;
+  type TStatID: std::fmt::Display + Clone;
 
   fn get_tick_unit() -> String;
   fn map_tick_unit(tick: usize) -> f64;
@@ -20,8 +20,14 @@ pub struct StatisticsGroup<TState, TStatistics: Statistics<TState>> {
   _statistics: PhantomData<TStatistics>,
 }
 
-impl<TState, TStatistics: Statistics<TState>> StatisticsGroup<TState, TStatistics> {
-  pub fn new(title: &str, unit: &str, names: Vec<TStatistics::TStatID>) -> Self {
+impl<TState, TStatistics: Statistics<TState>>
+  StatisticsGroup<TState, TStatistics>
+{
+  pub fn new(
+    title: &str,
+    unit: &str,
+    names: Vec<TStatistics::TStatID>,
+  ) -> Self {
     Self {
       title: title.into(),
       unit: unit.into(),
@@ -126,7 +132,8 @@ where
   tick: usize,
 }
 
-impl<TSimulation, TStatistics> StatisticsTrackingSimulator<TSimulation, TStatistics>
+impl<TSimulation, TStatistics>
+  StatisticsTrackingSimulator<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
@@ -170,5 +177,51 @@ where
 
   pub fn most_recent_statistics(&self) -> &(usize, TStatistics) {
     self.stats.statistics.last().unwrap()
+  }
+}
+
+pub struct StatisticsDisplay<'a, S, T>
+where
+  S: Statistics<T>,
+{
+  stats: &'a S,
+  _t: PhantomData<T>,
+}
+
+impl<'a, S, T> StatisticsDisplay<'a, S, T>
+where
+  S: Statistics<T>,
+{
+  pub fn new(stats: &'a S) -> Self {
+    Self {
+      stats,
+      _t: PhantomData,
+    }
+  }
+}
+
+impl<'a, S, T> std::fmt::Display for StatisticsDisplay<'a, S, T>
+where
+  S: Statistics<T>,
+{
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    for group in S::get_groups() {
+      writeln!(f, "{}", group.title)?;
+      let name_strings: Vec<_> =
+        group.names.iter().map(|name| format!("{}", name)).collect();
+      let longest = name_strings.iter().map(|s| s.len()).max();
+
+      for (i, name) in group.names.iter().enumerate() {
+        writeln!(
+          f,
+          "  {:width$} : {} {}",
+          name_strings[i],
+          self.stats.get_value(name.clone()),
+          group.unit,
+          width = longest.unwrap(),
+        )?;
+      }
+    }
+    Ok(())
   }
 }
