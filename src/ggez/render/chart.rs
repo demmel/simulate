@@ -17,7 +17,9 @@ pub struct StatsCharts<'a, TState, TStatistics: Statistics<TState>> {
   stats: &'a SimStats<TState, TStatistics>,
 }
 
-impl<'a, TState, TStatistics: Statistics<TState>> StatsCharts<'a, TState, TStatistics> {
+impl<'a, TState, TStatistics: Statistics<TState>>
+  StatsCharts<'a, TState, TStatistics>
+{
   pub fn new(stats: &'a SimStats<TState, TStatistics>) -> Self {
     Self { stats }
   }
@@ -62,13 +64,15 @@ pub struct StatsChart<'a, TState, TStatistics: Statistics<TState>> {
   max_value: f64,
   min_value: f64,
   group: &'a StatisticsGroup<TState, TStatistics>,
-  stats: &'a Vec<(usize, TStatistics)>,
+  stats: &'a [(usize, TStatistics)],
 }
 
-impl<'a, TState, TStatistics: Statistics<TState>> StatsChart<'a, TState, TStatistics> {
+impl<'a, TState, TStatistics: Statistics<TState>>
+  StatsChart<'a, TState, TStatistics>
+{
   pub fn new(
     group: &'a StatisticsGroup<TState, TStatistics>,
-    stats: &'a Vec<(usize, TStatistics)>,
+    stats: &'a [(usize, TStatistics)],
     min_value: f64,
     max_value: f64,
   ) -> Self {
@@ -81,7 +85,9 @@ impl<'a, TState, TStatistics: Statistics<TState>> StatsChart<'a, TState, TStatis
   }
 }
 
-impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TState, TStatistics> {
+impl<'a, TState, TStatistics: Statistics<TState>> Drawable
+  for StatsChart<'a, TState, TStatistics>
+{
   fn draw(&self, ctx: &mut Context, at: Rect) -> GameResult<()> {
     let Rect { x, y, w, h } = at;
     let mut buffer = vec![255; w as usize * h as usize * 3 /* RGB */];
@@ -97,11 +103,12 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
     }
 
     {
-      let backend = BitMapBackend::with_buffer(&mut buffer, (w as u32, h as u32));
+      let backend =
+        BitMapBackend::with_buffer(&mut buffer, (w as u32, h as u32));
       let root = backend.into_drawing_area();
-      root
-        .fill(&plotters::prelude::BLACK)
-        .or_else(|_| Err(GameError::RenderError(String::from("Could not fill root"))))?;
+      root.fill(&plotters::prelude::BLACK).map_err(|_| {
+        GameError::RenderError(String::from("Could not fill root"))
+      })?;
 
       let mut cc = ChartBuilder::on(&root)
         .margin(10)
@@ -114,17 +121,18 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .x_label_area_size(40)
         .y_label_area_size(50)
         .build_ranged(
-          self.stats.first().unwrap().0 as u32..self.stats.last().unwrap().0 as u32,
+          self.stats.first().unwrap().0 as u32
+            ..self.stats.last().unwrap().0 as u32,
           min_value..max_value,
         )
-        .or_else(|_| {
-          Err(GameError::RenderError(String::from(
-            "Could not construct chart",
-          )))
+        .map_err(|_| {
+          GameError::RenderError(String::from("Could not construct chart"))
         })?;
 
       cc.configure_mesh()
-        .x_label_formatter(&|x| format!("{}", TStatistics::map_tick_unit(*x as usize)))
+        .x_label_formatter(&|x| {
+          format!("{}", TStatistics::map_tick_unit(*x as usize))
+        })
         .y_label_formatter(&|y| {
           let (y, u) = match y {
             y if *y >= 1_000_000_000.0 => (y / 1_000_000_000.0, " B"),
@@ -152,10 +160,8 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         .line_style_1(&plotters::prelude::WHITE.mix(0.5))
         .line_style_2(&plotters::prelude::WHITE.mix(0.25))
         .draw()
-        .or_else(|_| {
-          Err(GameError::RenderError(String::from(
-            "Could not draw chart mesh",
-          )))
+        .map_err(|_| {
+          GameError::RenderError(String::from("Could not draw chart mesh"))
         })?;
 
       for (i, name) in self.group.names.iter().enumerate() {
@@ -166,11 +172,11 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
             .map(|(a, b)| (*a as u32, b.get_value(name.clone()))),
           &Palette99::pick(i),
         ))
-        .or_else(|_| {
-          Err(GameError::RenderError(format!(
+        .map_err(|_| {
+          GameError::RenderError(format!(
             "Could not draw '{}' series",
             <TStatistics::TStatID as Into<String>>::into(name.clone())
-          )))
+          ))
         })?
         .label(name.clone())
         .legend(move |(x, y)| {
@@ -188,10 +194,8 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable for StatsChart<'a, TS
         )
         .position(SeriesLabelPosition::MiddleLeft)
         .draw()
-        .or_else(|_| {
-          Err(GameError::RenderError(String::from(
-            "Could not draw legend",
-          )))
+        .map_err(|_| {
+          GameError::RenderError(String::from("Could not draw legend"))
         })?;
     }
 

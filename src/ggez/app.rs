@@ -79,10 +79,11 @@ where
     let target_fps = 60.0;
 
     let mut time_available = Duration::from_secs_f32(1.0 / target_fps)
-      .checked_sub(self.draw_time.unwrap_or(Duration::new(0, 0)))
+      .checked_sub(self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
       .unwrap_or_else(|| Duration::new(0, 1));
 
-    while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32() < self.tick_rate
+    while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32()
+      < self.tick_rate
       && time_available.as_secs_f32() > 0.0
     {
       let tick_start = Instant::now();
@@ -105,7 +106,14 @@ where
     Ok(())
   }
 
-  fn mouse_motion_event(&mut self, _ctx: &mut Context, x: f32, y: f32, dx: f32, dy: f32) {
+  fn mouse_motion_event(
+    &mut self,
+    _ctx: &mut Context,
+    x: f32,
+    y: f32,
+    dx: f32,
+    dy: f32,
+  ) {
     self.mouse_pos = Point2::from([x, y]);
     if self.mouse_down {
       self.camera_position[0] -= dx / 1.75 * self.zoom_level.powf(1.0 / 3.0);
@@ -113,34 +121,44 @@ where
     }
   }
 
-  fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
-    match button {
-      MouseButton::Left => {
-        self.mouse_down = true;
-      }
-      _ => {}
+  fn mouse_button_down_event(
+    &mut self,
+    _ctx: &mut Context,
+    button: MouseButton,
+    _x: f32,
+    _y: f32,
+  ) {
+    if let MouseButton::Left = button {
+      self.mouse_down = true;
     }
   }
 
-  fn mouse_button_up_event(&mut self, _ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
-    match button {
-      MouseButton::Left => {
-        self.mouse_down = false;
-      }
-      _ => {}
+  fn mouse_button_up_event(
+    &mut self,
+    _ctx: &mut Context,
+    button: MouseButton,
+    _x: f32,
+    _y: f32,
+  ) {
+    if let MouseButton::Left = button {
+      self.mouse_down = false;
     }
   }
 
   fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) {
-    let sim_rect = get_simulation_draw_rect(self.drawable_size[0], self.drawable_size[1]);
+    let sim_rect =
+      get_simulation_draw_rect(self.drawable_size[0], self.drawable_size[1]);
 
     let d_zoom = 0.05 * y * self.zoom_level;
     let o_zoom = self.zoom_level;
     self.zoom_level = (o_zoom + d_zoom).max(0.05);
 
-    let mouse_pos = nalgebra::Point2::from([self.mouse_pos.x, self.mouse_pos.y]);
-    let center =
-      nalgebra::Point2::from([sim_rect.x + sim_rect.w / 2.0, sim_rect.y + sim_rect.h / 2.0]);
+    let mouse_pos =
+      nalgebra::Point2::from([self.mouse_pos.x, self.mouse_pos.y]);
+    let center = nalgebra::Point2::from([
+      sim_rect.x + sim_rect.w / 2.0,
+      sim_rect.y + sim_rect.h / 2.0,
+    ]);
     let camera_pos = nalgebra::Vector2::from(self.camera_position);
 
     let shift = (mouse_pos - center) + camera_pos;

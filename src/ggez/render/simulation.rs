@@ -45,7 +45,7 @@ where
     ctx: &mut ggez::Context,
     at: ggez::graphics::Rect,
   ) -> std::result::Result<(), ggez::GameError> {
-    let Rect { w, h, .. } = self.state.dimensions(ctx).unwrap_or_else(|| Rect {
+    let Rect { w, h, .. } = self.state.dimensions(ctx).unwrap_or(Rect {
       x: 0.0,
       y: 0.0,
       w: 0.0,
