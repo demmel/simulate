@@ -1,5 +1,6 @@
 use crate::ggez::render::{
-  chart::StatsCharts, simulation::InternalStateRenderer, Drawable as MyDrawable,
+  line_chart::StatsCharts, simulation::InternalStateRenderer,
+  Drawable as MyDrawable,
 };
 use crate::ggez::StateRenderer;
 use crate::stats::Statistics;

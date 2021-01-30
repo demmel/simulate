@@ -1,4 +1,4 @@
-pub mod chart;
+pub mod line_chart;
 pub mod simulation;
 
 use ggez::{graphics::Rect, Context, GameResult};
