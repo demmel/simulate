@@ -3,6 +3,8 @@ pub mod stats;
 #[cfg(feature = "ggez_app")]
 pub mod ggez;
 
+#[cfg(feature = "perf")]
+pub mod perf;
 pub trait Simulation {
   type TState;
 
