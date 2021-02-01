@@ -1,7 +1,7 @@
-use crate::ggez::render::Drawable;
-use crate::stats::SimStats;
-use crate::stats::Statistics;
-use crate::stats::StatisticsGroup;
+use crate::{
+  ggez::render::Drawable,
+  stats::{SimStats, Statistics, StatisticsGroup},
+};
 use ggez::{
   graphics::{self, DrawParam, Image, Rect},
   Context, GameError, GameResult,

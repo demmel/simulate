@@ -1,5 +1,4 @@
-use crate::ggez::render::Drawable;
-use crate::ggez::StateRenderer;
+use crate::ggez::{render::Drawable, StateRenderer};
 use ggez::graphics::{self, DrawParam, Rect};
 
 pub struct InternalStateRenderer<'a, TState>

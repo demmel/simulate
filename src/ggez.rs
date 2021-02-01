@@ -1,5 +1,4 @@
-use ggez::graphics::Rect;
-use ggez::Context;
+use ggez::{graphics::Rect, Context};
 
 pub mod app;
 mod render;

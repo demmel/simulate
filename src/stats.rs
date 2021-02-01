@@ -1,5 +1,4 @@
-use crate::Simulation;
-use crate::Simulator;
+use crate::{Simulation, Simulator};
 use std::marker::PhantomData;
 
 pub trait Statistics<T>: Sized {
