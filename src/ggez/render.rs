@@ -1,5 +1,6 @@
-pub mod line_chart;
-pub mod simulation;
+pub(crate) mod layout;
+pub(crate) mod line_chart;
+pub(crate) mod simulation;
 
 use ggez::{graphics::Rect, Context, GameResult};
 

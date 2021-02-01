@@ -1,11 +1,15 @@
-use crate::ggez::render::{
-  line_chart::StatsCharts, simulation::InternalStateRenderer,
-  Drawable as MyDrawable,
+use super::{
+  render::{
+    layout::{Flex, FlexItem, Layout},
+    line_chart::StatsCharts,
+    simulation::InternalStateRenderer,
+  },
+  StateRenderer,
 };
-use crate::ggez::StateRenderer;
-use crate::stats::Statistics;
-use crate::stats::StatisticsTrackingSimulator;
-use crate::Simulation;
+use crate::{
+  stats::{Statistics, StatisticsTrackingSimulator},
+  Simulation,
+};
 use ggez::{
   event::{EventHandler, MouseButton},
   graphics::{self, Rect},
@@ -32,6 +36,7 @@ where
   ticks: u32,
   simulator: StatisticsTrackingSimulator<TSimulation, TStatistics>,
   zoom_level: f32,
+  layout: Layout<AppSection>,
 }
 
 impl<TSimulation, TStatistics> App<TSimulation, TStatistics>
@@ -59,6 +64,16 @@ where
       ticks: 0,
       simulator,
       zoom_level: 1.0,
+      layout: Flex::row(vec![
+        FlexItem {
+          weight: 1.0,
+          item: Layout::Leaf(AppSection::Stats),
+        },
+        FlexItem {
+          weight: 1.0,
+          item: Layout::Leaf(AppSection::Simulation),
+        },
+      ]),
     })
   }
 }
@@ -147,8 +162,18 @@ where
   }
 
   fn mouse_wheel_event(&mut self, _ctx: &mut Context, _x: f32, y: f32) {
-    let sim_rect =
-      get_simulation_draw_rect(self.drawable_size[0], self.drawable_size[1]);
+    let sim_rect = self
+      .layout
+      .get(
+        &AppSection::Simulation,
+        Rect {
+          x: 0.0,
+          y: 0.0,
+          w: self.drawable_size[0],
+          h: self.drawable_size[1],
+        },
+      )
+      .unwrap();
 
     let d_zoom = 0.05 * y * self.zoom_level;
     let o_zoom = self.zoom_level;
@@ -175,18 +200,26 @@ where
 
     graphics::clear(ctx, graphics::BLACK);
     let (w, h) = graphics::drawable_size(ctx);
-    InternalStateRenderer::new(self.simulator.state(), &self.assets)
-      .zoom_level(self.zoom_level)
-      .camera_position(self.camera_position)
-      .draw(ctx, get_simulation_draw_rect(w, h))?;
 
-    StatsCharts::new(&self.simulator.stats).draw(
-      ctx,
+    use super::render::Drawable;
+
+    self.layout.try_visit(
       Rect {
         x: 0.0,
         y: 0.0,
-        w: w / 2.0,
+        w,
         h,
+      },
+      &mut |section, bounds| match section {
+        AppSection::Simulation => {
+          InternalStateRenderer::new(self.simulator.state(), &self.assets)
+            .zoom_level(self.zoom_level)
+            .camera_position(self.camera_position)
+            .draw(ctx, bounds)
+        }
+        AppSection::Stats => {
+          StatsCharts::new(&self.simulator.stats).draw(ctx, bounds)
+        }
       },
     )?;
 
@@ -211,11 +244,8 @@ where
   }
 }
 
-fn get_simulation_draw_rect(w: f32, h: f32) -> Rect {
-  Rect {
-    x: w / 2.0,
-    y: 0.0,
-    w: w / 2.0,
-    h,
-  }
+#[derive(Clone, Hash, PartialEq, Eq)]
+enum AppSection {
+  Simulation,
+  Stats,
 }
