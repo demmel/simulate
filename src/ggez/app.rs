@@ -1,5 +1,6 @@
 use super::{
   render::{
+    icicle_chart::PerfChart,
     layout::{Flex, FlexItem, Layout},
     line_chart::StatsCharts,
     simulation::InternalStateRenderer,
@@ -7,6 +8,7 @@ use super::{
   StateRenderer,
 };
 use crate::{
+  perf::{self, Perf},
   stats::{Statistics, StatisticsTrackingSimulator},
   Simulation,
 };
@@ -16,7 +18,10 @@ use ggez::{
   mint::Point2,
   timer, Context, GameResult,
 };
-use std::time::{Duration, Instant};
+use std::{
+  collections::VecDeque,
+  time::{Duration, Instant},
+};
 
 pub struct App<TSimulation, TStatistics>
 where
@@ -37,6 +42,7 @@ where
   simulator: StatisticsTrackingSimulator<TSimulation, TStatistics>,
   zoom_level: f32,
   layout: Layout<AppSection>,
+  perf: VecDeque<Perf>,
 }
 
 impl<TSimulation, TStatistics> App<TSimulation, TStatistics>
@@ -78,7 +84,16 @@ where
         Flex::row(vec![
           FlexItem {
             weight: 1.0,
-            item: Layout::Leaf(AppSection::Stats),
+            item: Flex::column(vec![
+              FlexItem {
+                weight: 3.0,
+                item: Layout::Leaf(AppSection::Stats),
+              },
+              FlexItem {
+                weight: 1.0,
+                item: Layout::Leaf(AppSection::Perf),
+              },
+            ]),
           },
           FlexItem {
             weight: 1.0,
@@ -86,6 +101,7 @@ where
           },
         ]),
       ]),
+      perf: VecDeque::new(),
     })
   }
 }
@@ -97,41 +113,50 @@ where
   TSimulation::TState: StateRenderer,
 {
   fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
-    let update_start = Instant::now();
-    if let Some((w, h)) = self.new_size {
-      graphics::set_screen_coordinates(ctx, Rect { x: 0., y: 0., w, h })?;
-      self.drawable_size = [w, h];
-      self.new_size = None;
+    // Perf graph is always one frame behind
+    if self.perf.len() > 60 {
+      self.perf.pop_front();
     }
+    self.perf.push_back(Perf::get());
+    perf::clear();
 
-    let target_fps = 60.0;
+    perf::span_of("Update", || {
+      let update_start = Instant::now();
+      if let Some((w, h)) = self.new_size {
+        graphics::set_screen_coordinates(ctx, Rect { x: 0., y: 0., w, h })?;
+        self.drawable_size = [w, h];
+        self.new_size = None;
+      }
 
-    let mut time_available = Duration::from_secs_f32(1.0 / target_fps)
-      .checked_sub(self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
-      .unwrap_or_else(|| Duration::new(0, 1));
+      let target_fps = 60.0;
 
-    while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32()
-      < self.tick_rate
-      && time_available.as_secs_f32() > 0.0
-    {
-      let tick_start = Instant::now();
-      self.simulator.tick();
-      let tick_stop = Instant::now();
-      let tick_duration = tick_stop - tick_start;
-      self.ticks += 1;
-      time_available = time_available
-        .checked_sub(tick_duration)
-        .unwrap_or_else(|| Duration::new(0, 0));
-    }
+      let mut time_available = Duration::from_secs_f32(1.0 / target_fps)
+        .checked_sub(self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
+        .unwrap_or_else(|| Duration::new(0, 1));
 
-    self
-      .simulator
-      .state()
-      .update_assets(ctx, &mut self.assets)?;
+      while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32()
+        < self.tick_rate
+        && time_available.as_secs_f32() > 0.0
+      {
+        let tick_start = Instant::now();
+        self.simulator.tick();
+        let tick_stop = Instant::now();
+        let tick_duration = tick_stop - tick_start;
+        self.ticks += 1;
+        time_available = time_available
+          .checked_sub(tick_duration)
+          .unwrap_or_else(|| Duration::new(0, 0));
+      }
 
-    self.update_time = Some(Instant::now() - update_start);
+      self
+        .simulator
+        .state()
+        .update_assets(ctx, &mut self.assets)?;
 
-    Ok(())
+      self.update_time = Some(Instant::now() - update_start);
+
+      Ok(())
+    })
   }
 
   fn mouse_motion_event(
@@ -208,48 +233,44 @@ where
   }
 
   fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-    let draw_start = Instant::now();
+    perf::span_of("Draw", || {
+      let draw_start = Instant::now();
 
-    graphics::clear(ctx, graphics::BLACK);
-    let (w, h) = graphics::drawable_size(ctx);
+      graphics::clear(ctx, graphics::BLACK);
+      let (w, h) = graphics::drawable_size(ctx);
 
-    use super::render::Drawable;
+      use super::render::Drawable;
 
-    self.layout.try_visit(
-      Rect {
-        x: 0.0,
-        y: 0.0,
-        w,
-        h,
-      },
-      &mut |section, bounds| match section {
-        AppSection::None => Ok(()),
-        AppSection::Simulation => {
-          InternalStateRenderer::new(self.simulator.state(), &self.assets)
-            .zoom_level(self.zoom_level)
-            .camera_position(self.camera_position)
-            .draw(ctx, bounds)
-        }
-        AppSection::Stats => {
-          StatsCharts::new(&self.simulator.stats).draw(ctx, bounds)
-        }
-      },
-    )?;
+      self.layout.try_visit(
+        Rect {
+          x: 0.0,
+          y: 0.0,
+          w,
+          h,
+        },
+        &mut |section, bounds| match section {
+          AppSection::None => Ok(()),
+          AppSection::Perf => perf::span_of("Perf", || {
+            PerfChart::new(&self.perf.iter().collect()).draw(ctx, bounds)
+          }),
+          AppSection::Simulation => perf::span_of("Simulation", || {
+            InternalStateRenderer::new(self.simulator.state(), &self.assets)
+              .zoom_level(self.zoom_level)
+              .camera_position(self.camera_position)
+              .draw(ctx, bounds)
+          }),
+          AppSection::Stats => perf::span_of("Stats", || {
+            StatsCharts::new(&self.simulator.stats).draw(ctx, bounds)
+          }),
+        },
+      )?;
 
-    graphics::present(ctx)?;
+      graphics::present(ctx)?;
 
-    self.draw_time = Some(Instant::now() - draw_start);
+      self.draw_time = Some(Instant::now() - draw_start);
 
-    println!(
-      "Update: {:?} Draw: {:?} Delta: {:?} FPS: {:?} TPS: {:?}",
-      self.update_time,
-      self.draw_time,
-      timer::delta(ctx),
-      timer::fps(ctx),
-      self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32(),
-    );
-
-    Ok(())
+      Ok(())
+    })
   }
 
   fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
@@ -260,6 +281,7 @@ where
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum AppSection {
   None,
+  Perf,
   Simulation,
   Stats,
 }

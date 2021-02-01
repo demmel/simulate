@@ -1,3 +1,4 @@
+pub(crate) mod icicle_chart;
 pub(crate) mod layout;
 pub(crate) mod line_chart;
 pub(crate) mod simulation;

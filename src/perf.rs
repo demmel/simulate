@@ -1,12 +1,12 @@
 use indexmap::IndexMap;
-use std::{borrow::Cow, fmt::Display, time::Duration};
+use std::{borrow::Cow, fmt::Display, iter::FromIterator, time::Duration};
 
 #[derive(Clone)]
 pub struct Perf(Vec<flame::Span>);
 
 impl Perf {
   pub fn get() -> Self {
-    Self(flame::spans())
+    Self(flame::threads().into_iter().flat_map(|t| t.spans).collect())
   }
 
   pub fn get_perf(
@@ -16,11 +16,27 @@ impl Perf {
   ) -> Option<std::time::Duration> {
     get_perf_from_spans(&self.0, name, delim)
   }
+
+  pub fn folded(&self) -> FoldedSpans {
+    fold_spans(&self.0)
+  }
 }
 
 impl Display for Perf {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     fold_spans(&self.0).fmt(f)
+  }
+}
+
+impl FromIterator<Perf> for Perf {
+  fn from_iter<T: IntoIterator<Item = Perf>>(iter: T) -> Self {
+    Perf(iter.into_iter().flat_map(|p| p.0).collect())
+  }
+}
+
+impl<'a> FromIterator<&'a Perf> for Perf {
+  fn from_iter<T: IntoIterator<Item = &'a Perf>>(iter: T) -> Self {
+    Perf(iter.into_iter().flat_map(|p| p.0.clone()).collect())
   }
 }
 
@@ -35,7 +51,27 @@ where
   flame::span_of(name, f)
 }
 
-struct FoldedSpans(IndexMap<Cow<'static, str>, FoldedSpan>);
+pub fn start(name: &'static str) {
+  flame::start(name)
+}
+
+pub fn end(name: &'static str) {
+  flame::end(name);
+}
+
+pub struct FoldedSpans(IndexMap<Cow<'static, str>, FoldedSpan>);
+
+impl FoldedSpans {
+  pub fn duration(&self) -> Duration {
+    self.0.values().map(|s| s.duration).sum()
+  }
+
+  pub fn spans(
+    &self,
+  ) -> impl Iterator<Item = (&Cow<'static, str>, &FoldedSpan)> {
+    self.0.iter()
+  }
+}
 
 impl Display for FoldedSpans {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -64,10 +100,24 @@ impl Display for FoldedSpans {
   }
 }
 
-struct FoldedSpan {
+pub struct FoldedSpan {
   duration: Duration,
   num_folded: usize,
   children: FoldedSpans,
+}
+
+impl FoldedSpan {
+  pub fn duration(&self) -> Duration {
+    self.duration
+  }
+
+  pub fn average_duration(&self) -> Duration {
+    self.duration / self.num_folded as u32
+  }
+
+  pub fn children(&self) -> &FoldedSpans {
+    &self.children
+  }
 }
 
 fn fold_spans(spans: &[flame::Span]) -> FoldedSpans {
