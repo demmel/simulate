@@ -7,6 +7,7 @@ use std::{collections::HashMap, hash::Hash};
 
 pub enum Layout<T> {
   Flex(Flex<T>),
+  Layers(Vec<Layout<T>>),
   Leaf(T),
 }
 
@@ -17,6 +18,12 @@ impl<T> Layout<T> {
   {
     match self {
       Layout::Flex(flex) => flex.try_visit(bounds, f),
+      Layout::Layers(layers) => {
+        for layer in layers.iter() {
+          layer.try_visit(bounds, f)?;
+        }
+        Ok(())
+      }
       Layout::Leaf(leaf) => f(leaf, bounds),
     }
   }

@@ -64,15 +64,27 @@ where
       ticks: 0,
       simulator,
       zoom_level: 1.0,
-      layout: Flex::row(vec![
-        FlexItem {
-          weight: 1.0,
-          item: Layout::Leaf(AppSection::Stats),
-        },
-        FlexItem {
-          weight: 1.0,
-          item: Layout::Leaf(AppSection::Simulation),
-        },
+      layout: Layout::Layers(vec![
+        Flex::row(vec![
+          FlexItem {
+            weight: 1.0,
+            item: Layout::Leaf(AppSection::None),
+          },
+          FlexItem {
+            weight: 1.0,
+            item: Layout::Leaf(AppSection::Simulation),
+          },
+        ]),
+        Flex::row(vec![
+          FlexItem {
+            weight: 1.0,
+            item: Layout::Leaf(AppSection::Stats),
+          },
+          FlexItem {
+            weight: 1.0,
+            item: Layout::Leaf(AppSection::None),
+          },
+        ]),
       ]),
     })
   }
@@ -211,6 +223,7 @@ where
         h,
       },
       &mut |section, bounds| match section {
+        AppSection::None => Ok(()),
         AppSection::Simulation => {
           InternalStateRenderer::new(self.simulator.state(), &self.assets)
             .zoom_level(self.zoom_level)
@@ -246,6 +259,7 @@ where
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum AppSection {
+  None,
   Simulation,
   Stats,
 }
