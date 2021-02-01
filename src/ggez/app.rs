@@ -1,8 +1,7 @@
 use super::{
   render::{
-    icicle_chart::PerfChart,
     layout::{Flex, FlexItem, Layout},
-    line_chart::StatsCharts,
+    plotters::{icicle_chart::PerfChart, line_chart::StatsCharts},
     simulation::InternalStateRenderer,
   },
   StateRenderer,

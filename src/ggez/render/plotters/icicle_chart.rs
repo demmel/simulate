@@ -1,21 +1,16 @@
-use ggez::{
-  graphics::{self, DrawParam, Image, Rect},
-  Context, GameError, GameResult,
-};
 use plotters::{
   coord::Shift,
   prelude::{
-    BitMapBackend, DrawingArea, DrawingAreaErrorKind, DrawingBackend,
-    IntoDrawingArea, Rectangle,
+    BitMapBackend, DrawingArea, DrawingAreaErrorKind, DrawingBackend, Rectangle,
   },
   style::{Color, IntoFont, Palette, Palette99, BLACK},
 };
 
 use crate::perf::{FoldedSpan, FoldedSpans, Perf};
 
-use super::Drawable;
+use super::PlottersDrawableAdapter;
 
-pub struct PerfChart<'a> {
+pub(crate) struct PerfChart<'a> {
   perf: &'a Perf,
 }
 
@@ -25,40 +20,16 @@ impl<'a> PerfChart<'a> {
   }
 }
 
-impl<'a> Drawable for PerfChart<'a> {
-  fn draw(&self, ctx: &mut Context, at: Rect) -> GameResult<()> {
-    let Rect { x, y, w, h } = at;
-    let mut buffer = vec![255; w as usize * h as usize * 3 /* RGB */];
-
-    {
-      let backend =
-        BitMapBackend::with_buffer(&mut buffer, (w as u32, h as u32));
-      let root = backend.into_drawing_area();
-      root.fill(&plotters::prelude::BLACK).map_err(|_| {
-        GameError::RenderError(String::from("Could not fill root"))
-      })?;
-
-      draw_spans(&root, &self.perf.folded(), 0).map_err(|_| {
-        GameError::RenderError(String::from("Could not draw icicles"))
-      })?;
-    }
-
-    let image = Image::from_rgba8(
-      ctx,
-      w as u16,
-      h as u16,
-      &buffer.chunks(3).enumerate().fold(
-        vec![255; w as usize * h as usize * 4 /* RGBA */],
-        |mut buf, (ci, cur)| {
-          for i in 0..3 {
-            buf[4 * ci + i] = cur[i];
-          }
-          buf
-        },
-      ),
-    )?;
-    graphics::draw(ctx, &image, DrawParam::default().dest([x, y]))?;
-
+impl<'a> PlottersDrawableAdapter for PerfChart<'a> {
+  fn draw(
+    &self,
+    drawing_area: &DrawingArea<BitMapBackend, Shift>,
+  ) -> Result<
+    (),
+    DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
+  > {
+    drawing_area.fill(&plotters::prelude::BLACK)?;
+    draw_spans(&drawing_area, &self.perf.folded(), 0)?;
     Ok(())
   }
 }

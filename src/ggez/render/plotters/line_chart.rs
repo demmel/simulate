@@ -1,19 +1,19 @@
-use crate::{
-  ggez::render::Drawable,
-  stats::{SimStats, Statistics, StatisticsGroup},
-};
-use ggez::{
-  graphics::{self, DrawParam, Image, Rect},
-  Context, GameError, GameResult,
-};
+use crate::stats::{SimStats, Statistics, StatisticsGroup};
+
 use plotters::{
   chart::SeriesLabelPosition,
-  drawing::{BitMapBackend, IntoDrawingArea},
-  prelude::{ChartBuilder, LineSeries, Palette99, Rectangle},
+  coord::Shift,
+  drawing::BitMapBackend,
+  prelude::{
+    ChartBuilder, DrawingArea, DrawingAreaErrorKind, DrawingBackend,
+    LineSeries, Palette99, Rectangle,
+  },
   style::{Color as PlottersColor, IntoFont, Palette},
 };
 
-pub struct StatsCharts<'a, TState, TStatistics: Statistics<TState>> {
+use super::PlottersDrawableAdapter;
+
+pub(crate) struct StatsCharts<'a, TState, TStatistics: Statistics<TState>> {
   stats: &'a SimStats<TState, TStatistics>,
 }
 
@@ -25,42 +25,38 @@ impl<'a, TState, TStatistics: Statistics<TState>>
   }
 }
 
-impl<'a, TState, TStatistics: Statistics<TState>> Drawable
+impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
   for StatsCharts<'a, TState, TStatistics>
 {
-  fn draw(&self, ctx: &mut Context, at: Rect) -> GameResult<()> {
-    let Rect { x, y, w, h } = at;
+  fn draw(
+    &self,
+    drawing_area: &DrawingArea<BitMapBackend, Shift>,
+  ) -> Result<
+    (),
+    DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
+  > {
+    drawing_area.fill(&plotters::prelude::BLACK)?;
 
     let groups = TStatistics::get_groups();
     let grid_size = (groups.len() as f64).sqrt().ceil() as usize;
-    let sx = w / grid_size as f32;
-    let sy = h / grid_size as f32;
+
+    let cells = drawing_area.split_evenly((grid_size, grid_size));
 
     for (i, group) in groups.iter().enumerate() {
-      let r = i / grid_size;
-      let c = i % grid_size;
       StatsChart::new(
         group,
         &self.stats.statistics,
         self.stats.min_values[i],
         self.stats.max_values[i],
       )
-      .draw(
-        ctx,
-        Rect {
-          x: x + c as f32 * sx,
-          y: y + r as f32 * sy,
-          w: sx,
-          h: sy,
-        },
-      )?;
+      .draw(&cells[i])?;
     }
 
     Ok(())
   }
 }
 
-pub struct StatsChart<'a, TState, TStatistics: Statistics<TState>> {
+pub(crate) struct StatsChart<'a, TState, TStatistics: Statistics<TState>> {
   max_value: f64,
   min_value: f64,
   group: &'a StatisticsGroup<TState, TStatistics>,
@@ -85,12 +81,18 @@ impl<'a, TState, TStatistics: Statistics<TState>>
   }
 }
 
-impl<'a, TState, TStatistics: Statistics<TState>> Drawable
+impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
   for StatsChart<'a, TState, TStatistics>
 {
-  fn draw(&self, ctx: &mut Context, at: Rect) -> GameResult<()> {
-    let Rect { x, y, w, h } = at;
-    let mut buffer = vec![255; w as usize * h as usize * 3 /* RGB */];
+  fn draw(
+    &self,
+    drawing_area: &DrawingArea<BitMapBackend, Shift>,
+  ) -> Result<
+    (),
+    DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
+  > {
+    let (xs, ys) = drawing_area.get_pixel_range();
+    let (_, h) = ((xs.end - xs.start) as f64, (ys.end - ys.start) as f64);
 
     let &Self {
       min_value,
@@ -103,14 +105,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
     }
 
     {
-      let backend =
-        BitMapBackend::with_buffer(&mut buffer, (w as u32, h as u32));
-      let root = backend.into_drawing_area();
-      root.fill(&plotters::prelude::BLACK).map_err(|_| {
-        GameError::RenderError(String::from("Could not fill root"))
-      })?;
-
-      let mut cc = ChartBuilder::on(&root)
+      let mut cc = ChartBuilder::on(&drawing_area)
         .margin(10)
         .caption(
           &self.group.title,
@@ -124,10 +119,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
           self.stats.first().unwrap().0 as u32
             ..self.stats.last().unwrap().0 as u32,
           min_value..max_value,
-        )
-        .map_err(|_| {
-          GameError::RenderError(String::from("Could not construct chart"))
-        })?;
+        )?;
 
       cc.configure_mesh()
         .x_label_formatter(&|x| {
@@ -159,10 +151,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
         )
         .line_style_1(&plotters::prelude::WHITE.mix(0.5))
         .line_style_2(&plotters::prelude::WHITE.mix(0.25))
-        .draw()
-        .map_err(|_| {
-          GameError::RenderError(String::from("Could not draw chart mesh"))
-        })?;
+        .draw()?;
 
       for (i, name) in self.group.names.iter().enumerate() {
         cc.draw_series(LineSeries::new(
@@ -171,10 +160,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
             .iter()
             .map(|(a, b)| (*a as u32, b.get_value(name.clone()))),
           &Palette99::pick(i),
-        ))
-        .map_err(|_| {
-          GameError::RenderError(format!("Could not draw '{}' series", name))
-        })?
+        ))?
         .label(format!("{}", name))
         .legend(move |(x, y)| {
           Rectangle::new([(x - 5, y - 5), (x + 5, y + 5)], &Palette99::pick(i))
@@ -190,27 +176,8 @@ impl<'a, TState, TStatistics: Statistics<TState>> Drawable
             .color(&plotters::prelude::WHITE),
         )
         .position(SeriesLabelPosition::MiddleLeft)
-        .draw()
-        .map_err(|_| {
-          GameError::RenderError(String::from("Could not draw legend"))
-        })?;
+        .draw()?;
     }
-
-    let image = Image::from_rgba8(
-      ctx,
-      w as u16,
-      h as u16,
-      &buffer.chunks(3).enumerate().fold(
-        vec![255; w as usize * h as usize * 4 /* RGBA */],
-        |mut buf, (ci, cur)| {
-          for i in 0..3 {
-            buf[4 * ci + i] = cur[i];
-          }
-          buf
-        },
-      ),
-    )?;
-    graphics::draw(ctx, &image, DrawParam::default().dest([x, y]))?;
 
     Ok(())
   }
