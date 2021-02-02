@@ -15,5 +15,5 @@ perf = ["flame"]
 flame = { version = "0.2.2", optional = true }
 ggez = { version = "0.5.1", optional = true }
 nalgebra = { version = "0.24.1", optional = true }
-plotters = { version = "0.2.15", features = ["line_series"], optional = true }
+plotters = { version = "0.3.0", features = ["line_series"], optional = true }
 indexmap = "1.6.1"

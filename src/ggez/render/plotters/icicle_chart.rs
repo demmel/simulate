@@ -125,20 +125,20 @@ fn draw_span_header<DB: DrawingBackend>(
 
   da.draw(&Rectangle::new([(0, 0), (w, h)], BLACK.stroke_width(2)))?;
 
-  let font = ("sans-serif", h / 2).into_font();
+  let text_style = ("sans-serif", h / 2).into_font().color(&BLACK);
 
   let mut trunc_name = name;
-  let (mut tw, mut th) = da.estimate_text_size(name, &font)?;
+  let (mut tw, mut th) = da.estimate_text_size(name, &text_style)?;
   while tw as i32 > w && !trunc_name.is_empty() {
     trunc_name = &trunc_name[..(trunc_name.len() - 1)];
-    let (ntw, nth) = da.estimate_text_size(trunc_name, &font)?;
+    let (ntw, nth) = da.estimate_text_size(trunc_name, &text_style)?;
     tw = ntw;
     th = nth;
   }
   if !trunc_name.is_empty() {
     da.draw_text(
       trunc_name,
-      &font.color(&BLACK),
+      &text_style,
       (w / 2 - (tw / 2) as i32, h / 2 - (th / 2) as i32),
     )?;
   }

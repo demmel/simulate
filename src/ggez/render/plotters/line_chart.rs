@@ -3,10 +3,9 @@ use crate::stats::{SimStats, Statistics, StatisticsGroup};
 use plotters::{
   chart::SeriesLabelPosition,
   coord::Shift,
-  drawing::BitMapBackend,
   prelude::{
-    ChartBuilder, DrawingArea, DrawingAreaErrorKind, DrawingBackend,
-    LineSeries, Palette99, Rectangle,
+    BitMapBackend, ChartBuilder, DrawingArea, DrawingAreaErrorKind,
+    DrawingBackend, LineSeries, Palette99, Rectangle,
   },
   style::{Color as PlottersColor, IntoFont, Palette},
 };
@@ -115,7 +114,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
         )
         .x_label_area_size(40)
         .y_label_area_size(50)
-        .build_ranged(
+        .build_cartesian_2d(
           self.stats.first().unwrap().0 as u32
             ..self.stats.last().unwrap().0 as u32,
           min_value..max_value,
@@ -149,8 +148,8 @@ impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
             .into_font()
             .color(&plotters::prelude::WHITE),
         )
-        .line_style_1(&plotters::prelude::WHITE.mix(0.5))
-        .line_style_2(&plotters::prelude::WHITE.mix(0.25))
+        .bold_line_style(&plotters::prelude::WHITE.mix(0.5))
+        .light_line_style(&plotters::prelude::WHITE.mix(0.25))
         .draw()?;
 
       for (i, name) in self.group.names.iter().enumerate() {
