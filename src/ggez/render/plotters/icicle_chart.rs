@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use plotters::{
   coord::Shift,
   prelude::{
@@ -36,6 +38,14 @@ impl<'a> PlottersDrawableAdapter for PerfChart<'a> {
     let (_, h) = (xs.end - xs.start, ys.end - ys.start);
     let font = ("sans-serif", h / 15).into_font();
     let da = da.titled("Performance", font.color(&WHITE))?;
+    let font = ("sans-serif", h / 20).into_font();
+    let da = da.titled(
+      &format!(
+        "{}",
+        HumanReadableDuration(&self.perf.sum_of_average_durations())
+      ),
+      font.color(&WHITE),
+    )?;
 
     let da = da.margin(0, 15, 15, 15);
 
@@ -134,4 +144,22 @@ fn draw_span_header<DB: DrawingBackend>(
   }
 
   Ok(())
+}
+
+pub struct HumanReadableDuration<'a>(&'a Duration);
+
+impl<'a> std::fmt::Display for HumanReadableDuration<'a> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let duration = self.0;
+
+    if duration.as_nanos() < 10000 {
+      write!(f, "{} ns", duration.as_nanos())
+    } else if duration.as_micros() < 10000 {
+      write!(f, "{} µs", duration.as_micros())
+    } else if duration.as_millis() < 10000 {
+      write!(f, "{} ms", duration.as_millis())
+    } else {
+      write!(f, "{} s", duration.as_secs_f64())
+    }
+  }
 }
