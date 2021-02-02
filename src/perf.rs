@@ -9,14 +9,6 @@ impl Perf {
     Self(flame::threads().into_iter().flat_map(|t| t.spans).collect())
   }
 
-  pub fn get_perf(
-    &self,
-    name: &str,
-    delim: &str,
-  ) -> Option<std::time::Duration> {
-    get_perf_from_spans(&self.0, name, delim)
-  }
-
   pub fn folded(&self) -> FoldedSpans {
     fold_spans(&self.0)
   }
@@ -57,6 +49,10 @@ pub fn start(name: &'static str) {
 
 pub fn end(name: &'static str) {
   flame::end(name);
+}
+
+pub fn commit_thread() {
+  flame::commit_thread()
 }
 
 pub struct FoldedSpans(IndexMap<Cow<'static, str>, FoldedSpan>);
@@ -156,37 +152,4 @@ fn fold_span_into(folded: &mut FoldedSpans, span: &flame::Span) {
       num_folded: 1,
       children: fold_spans(&span.children),
     });
-}
-
-fn get_perf_from_span(
-  span: &flame::Span,
-  name: &str,
-  delim: &str,
-) -> Option<std::time::Duration> {
-  if let Some(rest) = name.strip_prefix(span.name.as_ref()) {
-    if rest.is_empty() {
-      Some(std::time::Duration::from_nanos(span.delta))
-    } else if let Some(rest) = rest.strip_prefix(delim) {
-      get_perf_from_spans(&span.children, rest, delim)
-    } else {
-      None
-    }
-  } else {
-    None
-  }
-}
-
-fn get_perf_from_spans(
-  spans: &[flame::Span],
-  name: &str,
-  delim: &str,
-) -> Option<std::time::Duration> {
-  let mut overall_duration = None;
-  for span in spans {
-    if let Some(duration) = get_perf_from_span(span, name, delim) {
-      overall_duration =
-        overall_duration.map(|d| d + duration).or(Some(duration));
-    }
-  }
-  overall_duration
 }
