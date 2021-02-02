@@ -133,24 +133,27 @@ where
         .checked_sub(self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
         .unwrap_or_else(|| Duration::new(0, 1));
 
-      while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32()
-        < self.tick_rate
-        && time_available.as_secs_f32() > 0.0
-      {
-        let tick_start = Instant::now();
-        self.simulator.tick();
-        let tick_stop = Instant::now();
-        let tick_duration = tick_stop - tick_start;
-        self.ticks += 1;
-        time_available = time_available
-          .checked_sub(tick_duration)
-          .unwrap_or_else(|| Duration::new(0, 0));
-      }
+      perf::span_of("Pacing Loop", || {
+        while self.ticks as f32 / timer::time_since_start(ctx).as_secs_f32()
+          < self.tick_rate
+          && time_available.as_secs_f32() > 0.0
+        {
+          let tick_start = Instant::now();
+          perf::span_of("Simulate", || {
+            self.simulator.tick();
+          });
+          let tick_stop = Instant::now();
+          let tick_duration = tick_stop - tick_start;
+          self.ticks += 1;
+          time_available = time_available
+            .checked_sub(tick_duration)
+            .unwrap_or_else(|| Duration::new(0, 0));
+        }
+      });
 
-      self
-        .simulator
-        .state()
-        .update_assets(ctx, &mut self.assets)?;
+      perf::span_of("Assets", || {
+        self.simulator.state().update_assets(ctx, &mut self.assets)
+      })?;
 
       self.update_time = Some(Instant::now() - update_start);
 
