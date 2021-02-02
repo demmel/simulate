@@ -71,6 +71,18 @@ impl FoldedSpans {
   ) -> impl Iterator<Item = (&Cow<'static, str>, &FoldedSpan)> {
     self.0.iter()
   }
+
+  pub fn get(&self, name: &[&str]) -> Option<&FoldedSpans> {
+    let mut base = self;
+    for &name in name {
+      if let Some(span) = base.0.get(name) {
+        base = &span.children;
+      } else {
+        return None;
+      }
+    }
+    Some(base)
+  }
 }
 
 impl Display for FoldedSpans {
