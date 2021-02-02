@@ -59,7 +59,11 @@ pub struct FoldedSpans(IndexMap<Cow<'static, str>, FoldedSpan>);
 
 impl FoldedSpans {
   pub fn duration(&self) -> Duration {
-    self.0.values().map(|s| s.duration).sum()
+    self.0.values().map(|s| s.duration()).sum()
+  }
+
+  pub fn sum_of_average_durations(&self) -> Duration {
+    self.0.values().map(|s| s.average_duration()).sum()
   }
 
   pub fn spans(

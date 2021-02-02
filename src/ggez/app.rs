@@ -85,7 +85,7 @@ where
             weight: 1.0,
             item: Flex::column(vec![
               FlexItem {
-                weight: 3.0,
+                weight: 2.0,
                 item: Layout::Leaf(AppSection::Stats),
               },
               FlexItem {

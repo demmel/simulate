@@ -3,12 +3,14 @@ use plotters::{
   prelude::{
     BitMapBackend, DrawingArea, DrawingAreaErrorKind, DrawingBackend, Rectangle,
   },
-  style::{Color, IntoFont, Palette, Palette99, BLACK},
+  style::{Color, IntoFont, Palette, Palette99, BLACK, WHITE},
 };
 
-use crate::perf::{FoldedSpan, FoldedSpans, Perf};
+use crate::perf::{FoldedSpan, FoldedSpans};
 
 use super::PlottersDrawableAdapter;
+
+const LAYER_HEIGHT: i32 = 20;
 
 pub(crate) struct PerfChart<'a> {
   perf: &'a FoldedSpans,
@@ -23,13 +25,22 @@ impl<'a> PerfChart<'a> {
 impl<'a> PlottersDrawableAdapter for PerfChart<'a> {
   fn draw(
     &self,
-    drawing_area: &DrawingArea<BitMapBackend, Shift>,
+    da: &DrawingArea<BitMapBackend, Shift>,
   ) -> Result<
     (),
     DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
   > {
-    drawing_area.fill(&plotters::prelude::BLACK)?;
-    draw_spans(&drawing_area, &self.perf, 0)?;
+    da.fill(&plotters::prelude::BLACK)?;
+
+    let (xs, ys) = da.get_pixel_range();
+    let (_, h) = (xs.end - xs.start, ys.end - ys.start);
+    let font = ("sans-serif", h / 15).into_font();
+    let da = da.titled("Performance", font.color(&WHITE))?;
+
+    let da = da.margin(0, 15, 15, 15);
+
+    draw_spans(&da, &self.perf, 0)?;
+
     Ok(())
   }
 }
@@ -39,12 +50,13 @@ fn draw_spans<DB: DrawingBackend>(
   spans: &FoldedSpans,
   depth: usize,
 ) -> Result<(), DrawingAreaErrorKind<DB::ErrorType>> {
-  let total = spans.duration().as_secs_f64();
+  let total = spans.sum_of_average_durations().as_secs_f64();
 
   let mut next_da = da.clone();
   for (name, span) in spans.spans() {
     let split = next_da.split_horizontally(
-      da.relative_to_width(span.duration().as_secs_f64() / total) as i32,
+      da.relative_to_width(span.average_duration().as_secs_f64() / total)
+        as i32,
     );
     next_da = split.1;
     draw_span(&split.0, name, span, depth)?;
@@ -59,19 +71,24 @@ fn draw_span<DB: DrawingBackend>(
   span: &FoldedSpan,
   depth: usize,
 ) -> Result<(), DrawingAreaErrorKind<DB::ErrorType>> {
-  let (current, rest) = da.split_vertically(30);
+  let (current, rest) = da.split_vertically(LAYER_HEIGHT);
 
   draw_span_header(&current, name, depth)?;
 
   if span.children().spans().next().is_none() {
     return Ok(());
-  } else if span.children().duration() < span.duration() {
-    let percent =
-      span.children().duration().as_secs_f64() / span.duration().as_secs_f64();
+  } else if span.children().sum_of_average_durations() < span.average_duration()
+  {
+    let percent = span.children().sum_of_average_durations().as_secs_f64()
+      / span.average_duration().as_secs_f64();
     let break_at = rest.relative_to_width(percent) as i32;
     let (children, missing) = rest.split_horizontally(break_at);
     draw_spans(&children, span.children(), depth + 1)?;
-    draw_span_header(&missing.split_vertically(30).0, "Missing", depth + 1)?;
+    draw_span_header(
+      &missing.split_vertically(LAYER_HEIGHT).0,
+      "Missing",
+      depth + 1,
+    )?;
   } else {
     draw_spans(&rest, span.children(), depth + 1)?;
   }
@@ -98,7 +115,7 @@ fn draw_span_header<DB: DrawingBackend>(
 
   da.draw(&Rectangle::new([(0, 0), (w, h)], BLACK.stroke_width(2)))?;
 
-  let font = ("sans-serif", h / 4).into_font();
+  let font = ("sans-serif", h / 2).into_font();
 
   let mut trunc_name = name;
   let (mut tw, mut th) = da.estimate_text_size(name, &font)?;
