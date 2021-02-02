@@ -11,11 +11,11 @@ use crate::perf::{FoldedSpan, FoldedSpans, Perf};
 use super::PlottersDrawableAdapter;
 
 pub(crate) struct PerfChart<'a> {
-  perf: &'a Perf,
+  perf: &'a FoldedSpans,
 }
 
 impl<'a> PerfChart<'a> {
-  pub fn new(perf: &'a Perf) -> Self {
+  pub fn new(perf: &'a FoldedSpans) -> Self {
     Self { perf }
   }
 }
@@ -29,7 +29,7 @@ impl<'a> PlottersDrawableAdapter for PerfChart<'a> {
     DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
   > {
     drawing_area.fill(&plotters::prelude::BLACK)?;
-    draw_spans(&drawing_area, &self.perf.folded(), 0)?;
+    draw_spans(&drawing_area, &self.perf, 0)?;
     Ok(())
   }
 }

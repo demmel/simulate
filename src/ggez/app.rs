@@ -250,7 +250,8 @@ where
         &mut |section, bounds| match section {
           AppSection::None => Ok(()),
           AppSection::Perf => perf::span_of("Perf", || {
-            PerfChart::new(&self.perf.iter().collect()).draw(ctx, bounds)
+            PerfChart::new(&self.perf.iter().collect::<Perf>().folded())
+              .draw(ctx, bounds)
           }),
           AppSection::Simulation => perf::span_of("Simulation", || {
             InternalStateRenderer::new(self.simulator.state(), &self.assets)
