@@ -35,11 +35,28 @@ impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
     DrawingAreaErrorKind<<BitMapBackend as DrawingBackend>::ErrorType>,
   > {
     drawing_area.fill(&plotters::prelude::BLACK)?;
+    let (xs, ys) = drawing_area.get_pixel_range();
+    let (w, h) = (xs.end - xs.start, ys.end - ys.start);
 
     let groups = TStatistics::get_groups();
-    let grid_size = (groups.len() as f64).sqrt().ceil() as usize;
+    let n_groups = groups.len();
+    let (r, c) = (1..=n_groups)
+      .map(|r| (r, n_groups / r + if n_groups % r != 0 { 1 } else { 0 }))
+      .filter(|(r, c)| {
+        let (w, h) = (w as f64 / *c as f64, h as f64 / *r as f64);
+        println!("{} {} {}", w, h, w / h);
+        true
+      })
+      .min_by(|(r1, c1), (r2, c2)| {
+        let (w1, h1) = (w as f64 / *c1 as f64, h as f64 / *r1 as f64);
+        let (w2, h2) = (w as f64 / *c2 as f64, h as f64 / *r2 as f64);
+        let a1 = w1 / h1;
+        let a2 = w2 / h2;
+        a1.ln().abs().partial_cmp(&a2.ln().abs()).unwrap()
+      })
+      .unwrap();
 
-    let cells = drawing_area.split_evenly((grid_size, grid_size));
+    let cells = drawing_area.split_evenly((r, c));
 
     for (i, group) in groups.iter().enumerate() {
       StatsChart::new(
