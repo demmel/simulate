@@ -42,11 +42,6 @@ impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
     let n_groups = groups.len();
     let (r, c) = (1..=n_groups)
       .map(|r| (r, n_groups / r + if n_groups % r != 0 { 1 } else { 0 }))
-      .filter(|(r, c)| {
-        let (w, h) = (w as f64 / *c as f64, h as f64 / *r as f64);
-        println!("{} {} {}", w, h, w / h);
-        true
-      })
       .min_by(|(r1, c1), (r2, c2)| {
         let (w1, h1) = (w as f64 / *c1 as f64, h as f64 / *r1 as f64);
         let (w2, h2) = (w as f64 / *c2 as f64, h as f64 / *r2 as f64);
