@@ -54,7 +54,7 @@ where
     ctx: &mut Context,
     simulator: StatisticsTrackingSimulator<TSimulation, TStatistics>,
   ) -> Result<Self, ggez::GameError> {
-    let drawable_size = graphics::drawable_size(&ctx);
+    let drawable_size = graphics::drawable_size(ctx);
 
     Ok(Self {
       assets: simulator.state().load_assets(ctx)?,

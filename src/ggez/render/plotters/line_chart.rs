@@ -116,7 +116,7 @@ impl<'a, TState, TStatistics: Statistics<TState>> PlottersDrawableAdapter
     }
 
     {
-      let mut cc = ChartBuilder::on(&drawing_area)
+      let mut cc = ChartBuilder::on(drawing_area)
         .margin(10)
         .caption(
           &self.group.title,

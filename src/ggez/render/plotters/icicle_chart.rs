@@ -49,7 +49,7 @@ impl<'a> PlottersDrawableAdapter for PerfChart<'a> {
 
     let da = da.margin(0, 15, 15, 15);
 
-    draw_spans(&da, &self.perf, 0)?;
+    draw_spans(&da, self.perf, 0)?;
 
     Ok(())
   }
