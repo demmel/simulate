@@ -15,7 +15,7 @@ use ggez::{
   event::{EventHandler, MouseButton},
   graphics::{self, Rect},
   mint::Point2,
-  timer, Context, GameResult,
+  timer, Context, GameError, GameResult,
 };
 use std::{
   collections::VecDeque,
@@ -105,7 +105,8 @@ where
   }
 }
 
-impl<TSimulation, TStatistics> EventHandler for App<TSimulation, TStatistics>
+impl<TSimulation, TStatistics> EventHandler<GameError>
+  for App<TSimulation, TStatistics>
 where
   TSimulation: Simulation,
   TStatistics: Statistics<TSimulation::TState>,
@@ -238,7 +239,7 @@ where
     perf::span_of("Draw", || {
       let draw_start = Instant::now();
 
-      graphics::clear(ctx, graphics::BLACK);
+      graphics::clear(ctx, graphics::Color::BLACK);
       let (w, h) = graphics::drawable_size(ctx);
 
       use super::render::Drawable;

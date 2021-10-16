@@ -1,4 +1,7 @@
-use ggez::{graphics::Rect, Context};
+use ggez::{
+  graphics::{DrawParam, Rect},
+  Context,
+};
 
 pub mod app;
 mod render;
@@ -23,6 +26,7 @@ pub trait StateRenderer {
     &self,
     ctx: &mut ggez::Context,
     assets: &Self::TAssets,
+    camera: DrawParam,
   ) -> Result<(), ggez::GameError>;
 
   fn dimensions(&self, _: &mut ggez::Context) -> Option<Rect>;

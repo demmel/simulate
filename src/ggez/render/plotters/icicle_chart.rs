@@ -12,7 +12,7 @@ use crate::perf::{FoldedSpan, FoldedSpans};
 
 use super::PlottersDrawableAdapter;
 
-const LAYER_HEIGHT: i32 = 20;
+const LAYER_HEIGHT: i32 = 40;
 
 pub(crate) struct PerfChart<'a> {
   perf: &'a FoldedSpans,

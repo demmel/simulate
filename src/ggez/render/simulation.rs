@@ -1,5 +1,5 @@
 use crate::ggez::{render::Drawable, StateRenderer};
-use ggez::graphics::{self, DrawParam, Rect};
+use ggez::graphics::{DrawParam, Rect};
 
 pub struct InternalStateRenderer<'a, TState>
 where
@@ -56,24 +56,15 @@ where
     let px_per_m = sx.min(sy);
     let zoom = px_per_m * self.zoom_level;
 
-    // Camera Drawing
-    graphics::push_transform(
-      ctx,
-      Some(
-        DrawParam::default()
-          .dest([
-            at.x + at.w / 2.0 - self.camera_position[0],
-            at.y + at.h / 2.0 - self.camera_position[1],
-          ])
-          .scale([zoom, zoom])
-          .to_matrix(),
-      ),
-    );
-    graphics::apply_transformations(ctx)?;
+    let camera = DrawParam::default()
+      .dest([
+        at.x + at.w / 2.0 - self.camera_position[0],
+        at.y + at.h / 2.0 - self.camera_position[1],
+      ])
+      .scale([zoom, zoom]);
 
-    self.state.draw(ctx, self.assets)?;
+    self.state.draw(ctx, self.assets, camera)?;
 
-    graphics::pop_transform(ctx);
-    graphics::apply_transformations(ctx)
+    Ok(())
   }
 }
