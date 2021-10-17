@@ -13,7 +13,7 @@ use crate::{
 };
 use ggez::{
   event::{EventHandler, MouseButton},
-  graphics::{self, Rect},
+  graphics::{self, DrawParam, Rect},
   mint::Point2,
   timer, Context, GameError, GameResult,
 };
@@ -42,6 +42,7 @@ where
   zoom_level: f32,
   layout: Layout<AppSection>,
   perf: VecDeque<Perf>,
+  ups: u32,
 }
 
 impl<TSimulation, TStatistics> App<TSimulation, TStatistics>
@@ -85,12 +86,16 @@ where
             weight: 1.0,
             item: Flex::column(vec![
               FlexItem {
-                weight: 2.0,
+                weight: 20.0,
                 item: Layout::Leaf(AppSection::Stats),
               },
               FlexItem {
-                weight: 1.0,
+                weight: 10.0,
                 item: Layout::Leaf(AppSection::Perf),
+              },
+              FlexItem {
+                weight: 1.0,
+                item: Layout::Leaf(AppSection::Ups),
               },
             ]),
           },
@@ -101,6 +106,7 @@ where
         ]),
       ]),
       perf: VecDeque::new(),
+      ups: 0,
     })
   }
 }
@@ -129,6 +135,7 @@ where
       }
 
       let target_fps = 60.0;
+      self.ups = 0;
 
       let mut time_available = Duration::from_secs_f32(1.0 / target_fps)
         .checked_sub(self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
@@ -146,6 +153,7 @@ where
           let tick_stop = Instant::now();
           let tick_duration = tick_stop - tick_start;
           self.ticks += 1;
+          self.ups += 1;
           time_available = time_available
             .checked_sub(tick_duration)
             .unwrap_or_else(|| Duration::new(0, 0));
@@ -266,6 +274,23 @@ where
           AppSection::Stats => perf::span_of("Stats", || {
             StatsCharts::new(&self.simulator.stats).draw(ctx, bounds)
           }),
+          AppSection::Ups => perf::span_of("UPS", || {
+            let ups_text = graphics::Text::new(
+              graphics::TextFragment::new(format!(
+                "UPS: {}",
+                self.ups as f64
+                  / (self.update_time.unwrap_or_else(|| Duration::new(0, 0))
+                    + self.draw_time.unwrap_or_else(|| Duration::new(0, 0)))
+                  .as_secs_f64()
+              ))
+              .scale(graphics::PxScale::from(bounds.h)),
+            );
+            graphics::draw(
+              ctx,
+              &ups_text,
+              DrawParam::default().dest([bounds.x, bounds.y]),
+            )
+          }),
         },
       )?;
 
@@ -288,4 +313,5 @@ enum AppSection {
   Perf,
   Simulation,
   Stats,
+  Ups,
 }
